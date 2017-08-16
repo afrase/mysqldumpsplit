@@ -1,8 +1,7 @@
-package main
+package msds
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,10 +10,8 @@ import (
 )
 
 const (
-	// Used to tell the
 	sentinelString = "****SENTINEL-STRING****"
-	headerData     = `
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+	headerData     = `/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
 /*!40101 SET NAMES utf8 */;
@@ -27,21 +24,18 @@ const (
 `
 )
 
-func producer(filePath string, readCh chan string) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
+// Producer reads `file` line-by-line and adds it to the `readCh` channel.
+func Producer(file *os.File, readCh chan string) {
 	r := bufio.NewReader(file)
 	for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
 		readCh <- line
 	}
+	file.Close()
 	close(readCh)
 }
 
-func consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
+// Consumer splits the file up and fills the different channels.
+func Consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
 	onTableScheme, onTableData := false, false
 	for line := range readCh {
 		if strings.Contains(line, "Table structure for table") {
@@ -69,16 +63,20 @@ func consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
 			}
 		}
 	}
+
 	close(tableNameCh)
 	close(tableDataCh)
 	close(tableSchemeCh)
 }
 
-func writer(outputDir string, tableNameCh, tableSchemeCh, tableDataCh chan string, doneCh chan bool) {
+// Writer writes the data from the different channels to different files.
+func Writer(outputDir string, skipTables []string, tableNameCh, tableSchemeCh, tableDataCh chan string, doneCh chan bool) {
 	os.Mkdir(outputDir, os.ModePerm)
+	numTables := 0
 
 	for tableName := range tableNameCh {
 		fmt.Printf("extracting table: %s\n", tableName)
+		numTables++
 		tablePath := filepath.Join(outputDir, tableName+".sql")
 		tableFile, _ := os.Create(tablePath)
 
@@ -93,61 +91,40 @@ func writer(outputDir string, tableNameCh, tableSchemeCh, tableDataCh chan strin
 			if tableData == sentinelString {
 				break
 			}
-			if tableName != "default_api_logs" && tableName != "default_ci_sessions" {
+
+			if !StringInArray(tableName, &skipTables) {
 				tableFile.WriteString(tableData)
 			}
 		}
 		tableFile.Close()
 	}
+	fmt.Printf("\nExtracted %d tables\n", numTables)
 	doneCh <- true
 }
 
-func combineFiles(filePath, outputDir string) {
+// CombineFiles combines all files ina directory into a single file
+func CombineFiles(filePath, outputDir string) {
 	combineFile, _ := os.Create(filePath)
+	info, _ := combineFile.Stat()
 	combineFile.WriteString(headerData)
 
-	defer combineFile.Close()
-
 	files, _ := ioutil.ReadDir(outputDir)
+	fmt.Printf("Combining all %d files into %s\n", len(files), filePath)
+
 	for _, file := range files {
 		sqlFile, _ := os.Open(filepath.Join(outputDir, file.Name()))
-		sqlFileReader := bufio.NewReader(sqlFile)
+		r := bufio.NewReader(sqlFile)
 
-		for line, err := sqlFileReader.ReadString('\n'); err == nil; line, err = sqlFileReader.ReadString('\n') {
+		for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
 			combineFile.WriteString(line)
 		}
+		// write a newline between each file
 		combineFile.WriteString("\n")
 	}
+
+	fmt.Printf("New file size %s\n", StringifyFileSize(info.Size()))
+	combineFile.Close()
+
+	fmt.Println("Deleting output directory")
 	os.RemoveAll(outputDir)
-}
-
-func main() {
-	var inputFile, outputPath, combineFilePath string
-	var combine bool
-
-	flag.StringVar(&inputFile, "input", "", "The file to read from")
-	flag.StringVar(&inputFile, "i", "", "The file to read from")
-	flag.StringVar(&outputPath, "output", "output", "The output path")
-	flag.StringVar(&outputPath, "o", "output", "The output path")
-
-	flag.StringVar(&combineFilePath, "combinefile", "dumpfile.sql", "The path to output single SQL file")
-	flag.BoolVar(&combine, "combine", false, "Combine all tables into a single file")
-
-	flag.Parse()
-
-	readCh := make(chan string)
-	tableNameCh := make(chan string)
-	tableDataCh := make(chan string)
-	tableSchemeCh := make(chan string)
-	doneCh := make(chan bool)
-
-	go producer(inputFile, readCh)
-	go consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh)
-	go writer(outputPath, tableNameCh, tableSchemeCh, tableDataCh, doneCh)
-
-	<-doneCh
-
-	if combine {
-		combineFiles(combineFilePath, outputPath)
-	}
 }
