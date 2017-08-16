@@ -2,7 +2,6 @@ version: 2
 jobs:
   build:
     docker:
-      # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
       - image: circleci/golang:1.8
 
     working_directory: /go/src/github.com/afrase/mysqldumpsplit
@@ -14,10 +13,13 @@ jobs:
       - checkout
       - run: mkdir -p $TEST_RESULTS
 
+      - run: go get github.com/jstemmer/go-junit-report
+
       - run:
           name: Run unit tests
           command: |
-            go test -v ./... | tee ${TEST_RESULTS}/go-test.out
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            make test | tee ${TEST_RESULTS}/go-test.out
 
       - store_artifacts:
           path: /tmp/test-results
