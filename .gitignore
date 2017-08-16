@@ -18,5 +18,5 @@
 
 .vscode
 .idea
-
+dist
 mysqldumpsplit
