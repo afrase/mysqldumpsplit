@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-const headerData = `
+const (
+	// Used to tell the
+	sentinelString = "****SENTINEL-STRING****"
+	headerData     = `
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
@@ -22,6 +25,7 @@ const headerData = `
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 `
+)
 
 func producer(filePath string, readCh chan string) {
 	file, err := os.Open(filePath)
@@ -30,30 +34,23 @@ func producer(filePath string, readCh chan string) {
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			break
-		}
+	r := bufio.NewReader(file)
+	for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
 		readCh <- line
 	}
 	close(readCh)
 }
 
 func consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
-	onTableScheme := false
-	onTableData := false
+	onTableScheme, onTableData := false, false
 	for line := range readCh {
 		if strings.Contains(line, "Table structure for table") {
-			onTableScheme = true
-			onTableData = false
+			onTableScheme, onTableData = true, false
 			tableName := strings.Replace(line, "-- Table structure for table ", "", 1)
 			tableNameCh <- strings.TrimSpace(strings.Replace(tableName, "`", "", -1))
 			tableSchemeCh <- line
 		} else if strings.Contains(line, "LOCK TABLES `") {
-			onTableData = true
-			onTableScheme = false
+			onTableData, onTableScheme = true, false
 			tableDataCh <- line
 		} else {
 			if onTableScheme {
@@ -65,10 +62,10 @@ func consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
 
 			if strings.Contains(line, "-- Dumping data for table") {
 				onTableScheme = false
-				tableSchemeCh <- "SENTINEL_STRING"
+				tableSchemeCh <- sentinelString
 			} else if strings.Contains(line, "UNLOCK TABLES;") {
 				onTableData = false
-				tableDataCh <- "SENTINEL_STRING"
+				tableDataCh <- sentinelString
 			}
 		}
 	}
@@ -81,19 +78,19 @@ func writer(outputDir string, tableNameCh, tableSchemeCh, tableDataCh chan strin
 	os.Mkdir(outputDir, os.ModePerm)
 
 	for tableName := range tableNameCh {
-		fmt.Printf("%s\n", tableName)
+		fmt.Printf("extracting table: %s\n", tableName)
 		tablePath := filepath.Join(outputDir, tableName+".sql")
 		tableFile, _ := os.Create(tablePath)
 
 		for tableData := range tableSchemeCh {
-			if tableData == "SENTINEL_STRING" {
+			if tableData == sentinelString {
 				break
 			}
 			tableFile.WriteString(tableData)
 		}
 
 		for tableData := range tableDataCh {
-			if tableData == "SENTINEL_STRING" {
+			if tableData == sentinelString {
 				break
 			}
 			if tableName != "default_api_logs" && tableName != "default_ci_sessions" {
