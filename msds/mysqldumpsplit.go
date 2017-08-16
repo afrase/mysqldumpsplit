@@ -25,6 +25,7 @@ const (
 )
 
 // Producer reads `file` line-by-line and adds it to the `readCh` channel.
+// Note: This function closes `file`.
 func Producer(file *os.File, readCh chan string) {
 	r := bufio.NewReader(file)
 	for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
@@ -105,7 +106,6 @@ func Writer(outputDir string, skipTables []string, tableNameCh, tableSchemeCh, t
 // CombineFiles combines all files ina directory into a single file
 func CombineFiles(filePath, outputDir string) {
 	combineFile, _ := os.Create(filePath)
-	info, _ := combineFile.Stat()
 	combineFile.WriteString(headerData)
 
 	files, _ := ioutil.ReadDir(outputDir)
@@ -122,6 +122,7 @@ func CombineFiles(filePath, outputDir string) {
 		combineFile.WriteString("\n")
 	}
 
+	info, _ := combineFile.Stat()
 	fmt.Printf("New file size %s\n", StringifyFileSize(info.Size()))
 	combineFile.Close()
 

@@ -1,0 +1,27 @@
+version: 2
+jobs:
+  build:
+    docker:
+      # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+      - image: circleci/golang:1.8
+
+    working_directory: /go/src/github.com/afrase/mysqldumpsplit
+
+    environment:
+      TEST_RESULTS: /tmp/test-results
+
+    steps:
+      - checkout
+      - run: mkdir -p $TEST_RESULTS
+
+      - run:
+          name: Run unit tests
+          command: |
+            go test -v ./... | tee ${TEST_RESULTS}/go-test.out
+
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+
+      - store_test_results:
+          path: /tmp/test-results

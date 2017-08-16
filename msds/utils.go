@@ -38,6 +38,9 @@ func StringInArray(str string, arrayOfStrings *[]string) bool {
 // StringifyFileSize converts bytes to something more readable.
 func StringifyFileSize(size int64) string {
 	suffix := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}
+	if size == 0 {
+		return "0 B"
+	}
 	e := math.Floor(math.Log(float64(size)) / math.Log(1000))
 	val := math.Floor(float64(size)/math.Pow(1000, e)*10+0.5) / 10
 	return fmt.Sprintf("%.1f %s", val, suffix[int(e)])
