@@ -58,6 +58,14 @@ jobs:
 
 workflows:
   version: 2
+  untagged-build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              ignore: /.*/
   tagged-build:
     jobs:
       - release-build:
