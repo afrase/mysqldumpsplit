@@ -18,6 +18,11 @@ type config struct {
 }
 
 func openFile(path string) *os.File {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "The file '%s' does not exist.\n", path)
+		os.Exit(1)
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
@@ -54,12 +59,12 @@ func main() {
 	tableSchemeCh := make(chan string)
 	doneCh := make(chan bool)
 
+	file := openFile(conf.InputFile)
+
 	fmt.Printf("Outputing all tables to %s\n", conf.OutputPath)
 	if len(conf.Skip) > 0 {
 		fmt.Printf("Skiping data from tables %s\n", strings.Join(conf.Skip, ", "))
 	}
-
-	file := openFile(conf.InputFile)
 
 	fmt.Printf("Begin processing %s\n\n", conf.InputFile)
 	// create a pipeline of goroutines
