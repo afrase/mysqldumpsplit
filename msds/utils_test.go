@@ -2,6 +2,8 @@ package msds
 
 import (
 	"testing"
+	"io/ioutil"
+	"os"
 )
 
 func TestSkipTables_String(t *testing.T) {
@@ -93,4 +95,33 @@ func TestStringifyFileSize(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOpenFile(t *testing.T) {
+	type args struct {
+		path string
+	}
+	tempFile1, _ := ioutil.TempFile("", "file1")
+
+	tests := []struct{
+		name string
+		args args
+		wantErr bool
+	}{
+		{"no error opening file", args{tempFile1.Name()}, false},
+		{"error opening non existing file", args{"foo.txt"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := OpenFile(tt.args.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("OpenFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			f.Close()
+		})
+	}
+
+	tempFile1.Close()
+	os.Remove(tempFile1.Name())
 }

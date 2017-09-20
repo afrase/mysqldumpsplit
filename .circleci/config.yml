@@ -1,19 +1,26 @@
 version: 2
+
+defaults: &defaults
+  docker:
+    - image: circleci/golang:1.9
+  working_directory: /go/src/github.com/afrase/mysqldumpsplit
+
 jobs:
   build:
-    docker:
-      - image: circleci/golang:1.8
-
-    working_directory: /go/src/github.com/afrase/mysqldumpsplit
+    <<: *defaults
 
     environment:
       TEST_RESULTS: /tmp/test-results
 
     steps:
       - checkout
-      - run: mkdir -p $TEST_RESULTS
+      - run:
+          name: Create test results directory
+          command: mkdir -p $TEST_RESULTS
 
-      - run: go get github.com/jstemmer/go-junit-report
+      - run:
+          name: Install dependencies
+          command: go get github.com/jstemmer/go-junit-report
 
       - run:
           name: Run unit tests
@@ -27,3 +34,35 @@ jobs:
 
       - store_test_results:
           path: /tmp/test-results
+  
+  release-build:
+    <<: *defaults
+
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            go get github.com/tcnksm/ghr
+            go get github.com/mitchellh/gox
+
+      - run:
+          name: Cross-compile application
+          command: |
+            gox -osarch "darwin/amd64 darwin/386 linux/amd64 linux/386 windows/amd64 windows/386" -output "dist/mysqldumpsplit_{{.OS}}_{{.Arch}}"
+      
+      - run:
+          name: Upload binaries
+          command: |
+            ghr -replace ${CIRCLE_TAG} dist
+
+workflows:
+  version: 2
+  tagged-build:
+    jobs:
+      - release-build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v.*/

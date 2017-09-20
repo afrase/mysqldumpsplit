@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 )
 
@@ -44,4 +45,18 @@ func StringifyFileSize(size int64) string {
 	e := math.Floor(math.Log(float64(size)) / math.Log(1000))
 	val := math.Floor(float64(size)/math.Pow(1000, e)*10+0.5) / 10
 	return fmt.Sprintf("%.1f %s", val, suffix[int(e)])
+}
+
+// OpenFile tries to open the file at `path`.
+func OpenFile(path string) (*os.File, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil, fmt.Errorf("the file '%s' does not exist", path)
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }

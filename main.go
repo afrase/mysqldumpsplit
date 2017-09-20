@@ -17,32 +17,17 @@ type config struct {
 	Skip            msds.SkipTables
 }
 
-func openFile(path string) *os.File {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "The file '%s' does not exist.\n", path)
-		os.Exit(1)
-	}
-
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-
-	info, _ := file.Stat()
-	fmt.Printf("Original file size %s\n", msds.StringifyFileSize(info.Size()))
-
-	return file
-}
-
 func parseFlags() *config {
 	conf := new(config)
 
-	flag.StringVar(&conf.InputFile, "i", "", "The file to read from")
+	flag.StringVar(&conf.InputFile, "i", "", "The file to read from, can be a gzip file")
 	flag.StringVar(&conf.OutputPath, "o", "output", "The output path ")
 
-	flag.Var(&conf.Skip, "skipData", "Comma separated list of tables you don't want the data for")
+	flag.Var(&conf.Skip, "skipData",
+		"Comma separated list of tables you want to skip outputing the data for.\n\tUse '*' to skip all.")
 
-	flag.BoolVar(&conf.Combine, "combine", false, "Combine all tables into a single file")
+	flag.BoolVar(&conf.Combine, "combine", false,
+		"Combine all tables into a single file, deletes individual table files")
 	flag.StringVar(&conf.CombineFilePath, "combineFile", "dumpfile.sql",
 		"The path to output a single SQL file\n\tOnly used if combine flag is set")
 
@@ -59,8 +44,14 @@ func main() {
 	tableSchemeCh := make(chan string)
 	doneCh := make(chan bool)
 
-	file := openFile(conf.InputFile)
+	file, err := msds.OpenFile(conf.InputFile)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
+	info, _ := file.Stat()
+	fmt.Printf("Original file size %s\n", msds.StringifyFileSize(info.Size()))
 	fmt.Printf("Outputing all tables to %s\n", conf.OutputPath)
 	if len(conf.Skip) > 0 {
 		fmt.Printf("Skiping data from tables %s\n", strings.Join(conf.Skip, ", "))

@@ -2,9 +2,11 @@ package msds
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -24,10 +26,38 @@ const (
 `
 )
 
+func checkBytes(b *bufio.Reader, buf []byte) bool {
+	m, err := b.Peek(len(buf))
+	if err != nil {
+		return false
+	}
+	for i := range buf {
+		if m[i] != buf[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func isGzip(b *bufio.Reader) bool {
+	return checkBytes(b, []byte{0x1f, 0x8b})
+}
+
+func openReader(f *os.File) *bufio.Reader {
+	pageSize := os.Getpagesize() * 2
+	fmt.Println(pageSize)
+	buf := bufio.NewReaderSize(f, pageSize)
+	if isGzip(buf) {
+		gbuf, _ := gzip.NewReader(buf)
+		return bufio.NewReaderSize(gbuf, pageSize)
+	}
+	return buf
+}
+
 // Producer reads `file` line-by-line and adds it to the `readCh` channel.
 // Note: This function closes `file`.
 func Producer(file *os.File, readCh chan string) {
-	r := bufio.NewReader(file)
+	r := openReader(file)
 	for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
 		readCh <- line
 	}
@@ -43,6 +73,7 @@ func Consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
 			onTableScheme, onTableData = true, false
 			tableName := strings.Replace(line, "-- Table structure for table ", "", 1)
 			tableNameCh <- strings.TrimSpace(strings.Replace(tableName, "`", "", -1))
+			tableSchemeCh <- "--\n"
 			tableSchemeCh <- line
 		} else if strings.Contains(line, "LOCK TABLES `") {
 			onTableData, onTableScheme = true, false
@@ -57,6 +88,7 @@ func Consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh chan string) {
 
 			if strings.Contains(line, "-- Dumping data for table") {
 				onTableScheme = false
+				tableSchemeCh <- "--\n"
 				tableSchemeCh <- sentinelString
 			} else if strings.Contains(line, "UNLOCK TABLES;") {
 				onTableData = false
@@ -107,12 +139,19 @@ func Writer(outputDir string, skipTables []string, tableNameCh, tableSchemeCh, t
 func CombineFiles(filePath, outputDir string) {
 	combineFile, _ := os.Create(filePath)
 	combineFile.WriteString(headerData)
+	cleanUpOutputDir := true
 
 	files, _ := ioutil.ReadDir(outputDir)
 	fmt.Printf("Combining all %d files into %s\n", len(files), filePath)
 
 	for _, file := range files {
-		sqlFile, _ := os.Open(filepath.Join(outputDir, file.Name()))
+		fullPath := path.Join(outputDir, file.Name())
+		if combineFile.Name() == fullPath {
+			cleanUpOutputDir = false
+			continue
+		}
+
+		sqlFile, _ := OpenFile(filepath.Join(outputDir, file.Name()))
 		r := bufio.NewReader(sqlFile)
 
 		for line, err := r.ReadString('\n'); err == nil; line, err = r.ReadString('\n') {
@@ -120,12 +159,17 @@ func CombineFiles(filePath, outputDir string) {
 		}
 		// write a newline between each file
 		combineFile.WriteString("\n")
+		// close then delete the table file
+		sqlFile.Close()
+		os.Remove(sqlFile.Name())
 	}
 
 	info, _ := combineFile.Stat()
 	fmt.Printf("New file size %s\n", StringifyFileSize(info.Size()))
 	combineFile.Close()
 
-	fmt.Println("Deleting output directory")
-	os.RemoveAll(outputDir)
+	if cleanUpOutputDir {
+		fmt.Println("Deleting output directory")
+		os.RemoveAll(outputDir)
+	}
 }
