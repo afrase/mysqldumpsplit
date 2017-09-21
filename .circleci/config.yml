@@ -54,7 +54,7 @@ jobs:
       - run:
           name: Upload binaries
           command: |
-            ghr -replace ${CIRCLE_TAG} dist
+            ghr -u afrase -replace ${CIRCLE_TAG} dist
 
 workflows:
   version: 2
