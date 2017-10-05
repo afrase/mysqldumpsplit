@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/afrase/mysqldumpsplit/msds"
+	"time"
 )
 
 type config struct {
@@ -37,12 +38,10 @@ func parseFlags() *config {
 
 func main() {
 	conf := parseFlags()
-
-	readCh := make(chan string)
-	tableNameCh := make(chan string)
-	tableDataCh := make(chan string)
-	tableSchemeCh := make(chan string)
-	doneCh := make(chan bool)
+	if conf.InputFile == "" {
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
 
 	file, err := msds.OpenFile(conf.InputFile)
 	if err != nil {
@@ -50,23 +49,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	info, _ := file.Stat()
-	fmt.Printf("Original file size %s\n", msds.StringifyFileSize(info.Size()))
-	fmt.Printf("Outputing all tables to %s\n", conf.OutputPath)
-	if len(conf.Skip) > 0 {
-		fmt.Printf("Skiping data from tables %s\n", strings.Join(conf.Skip, ", "))
+	bus := msds.ChannelBus{
+		Finished:    make(chan bool),
+		Log:         make(chan string),
+		TableData:   make(chan string),
+		TableScheme: make(chan string),
+		TableName:   make(chan string),
+		CurrentLine: make(chan string),
 	}
 
-	fmt.Printf("Begin processing %s\n\n", conf.InputFile)
+	go msds.Logger(bus)
+
+	bus.Log <- fmt.Sprintf("outputing all tables to %s\n", conf.OutputPath)
+	if len(conf.Skip) > 0 {
+		bus.Log <- fmt.Sprintf("skiping data from tables %s\n", strings.Join(conf.Skip, ", "))
+	}
+
+	start := time.Now()
+	bus.Log <- fmt.Sprintf("begin processing %s\n", conf.InputFile)
 	// create a pipeline of goroutines
-	go msds.Producer(file, readCh)
-	go msds.Consumer(readCh, tableNameCh, tableSchemeCh, tableDataCh)
-	go msds.Writer(conf.OutputPath, conf.Skip, tableNameCh, tableSchemeCh, tableDataCh, doneCh)
+	go msds.LineReader(file, bus)
+	go msds.LineParser(bus, conf.Combine)
+	go msds.Writer(conf.OutputPath, conf.Skip, bus)
 
 	// wait for the writer to finish.
-	<-doneCh
+	<-bus.Finished
 
 	if conf.Combine {
-		msds.CombineFiles(conf.CombineFilePath, conf.OutputPath)
+		msds.CombineFiles(conf.CombineFilePath, conf.OutputPath, bus)
 	}
+
+	bus.Log <- fmt.Sprintf("finished in %s", time.Now().Sub(start))
+	bus.Log <- ""
+	close(bus.Log)
+	close(bus.Finished)
 }
