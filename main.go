@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/afrase/mysqldumpsplit/msds"
-	"time"
 )
+
+var version = "master"
 
 type config struct {
 	InputFile       string
 	OutputPath      string
 	CombineFilePath string
 	Combine         bool
+	Version         bool
 	Skip            msds.SkipTables
 }
 
@@ -31,6 +34,7 @@ func parseFlags() *config {
 		"Combine all tables into a single file, deletes individual table files")
 	flag.StringVar(&conf.CombineFilePath, "combineFile", "dumpfile.sql",
 		"The path to output a single SQL file\n\tOnly used if combine flag is set")
+	flag.BoolVar(&conf.Version, "v", false, "Display the version and exit")
 
 	flag.Parse()
 	return conf
@@ -38,6 +42,11 @@ func parseFlags() *config {
 
 func main() {
 	conf := parseFlags()
+	if conf.Version {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
 	if conf.InputFile == "" {
 		flag.PrintDefaults()
 		os.Exit(0)
