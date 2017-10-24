@@ -17,7 +17,17 @@ Usage of mysqldumpsplit:
   -skipData value
     	Comma separated list of tables you want to skip outputing the data for.
 	Use '*' to skip all.
+  -version
+    	Display the version and exit
 ```
+
+# Install
+
+If you are on a Mac you can install with Homebrew.
+
+`brew install afrase/tap/mysqldumpsplit`
+
+You could also grab the binary from the releases page.
 
 # Performance
 
