@@ -34,7 +34,7 @@ func parseFlags() *config {
 		"Combine all tables into a single file, deletes individual table files")
 	flag.StringVar(&conf.CombineFilePath, "combineFile", "dumpfile.sql",
 		"The path to output a single SQL file\n\tOnly used if combine flag is set")
-	flag.BoolVar(&conf.Version, "v", false, "Display the version and exit")
+	flag.BoolVar(&conf.Version, "version", false, "Display the version and exit")
 
 	flag.Parse()
 	return conf

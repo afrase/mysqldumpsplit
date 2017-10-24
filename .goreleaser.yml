@@ -31,6 +31,17 @@ archive:
     - goos: windows
       format: zip
 
+brew:
+  github:
+    owner: afrase
+    name: mysqldumpsplit-homebrew-tap
+  commit_author:
+    name: afrase
+    email: afrase91@gmail.com
+  description: "Split a mysqldump into separate files for each table."
+  test: |
+    system "#{bin}/mysqldumpsplit -version"
+
 snapshot:
   name_template: SNAPSHOT-{{ .Commit }}
 
