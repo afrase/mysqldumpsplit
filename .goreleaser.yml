@@ -34,10 +34,11 @@ archive:
 brew:
   github:
     owner: afrase
-    name: mysqldumpsplit-homebrew-tap
+    name: homebrew-tap
   commit_author:
     name: afrase
     email: afrase91@gmail.com
+  folder: Formula
   description: "Split a mysqldump into separate files for each table."
   test: |
     system "#{bin}/mysqldumpsplit -version"
