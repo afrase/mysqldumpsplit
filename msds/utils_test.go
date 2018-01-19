@@ -151,7 +151,7 @@ func TestWildcardMatch(t *testing.T) {
 		{"Wildcard matches wildcard", args{"*", "*"}, true},
 		{"Wildcard match", args{"foo", "f*"}, true},
 		{"Wildcard with unmatched ending", args{"foo", "f*bar"}, false},
-		{"Multiple wildcard matches", args{"foobar", "f*b*r"}, false},
+		{"Multiple wildcard matches", args{"foobar", "f*b*r"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
