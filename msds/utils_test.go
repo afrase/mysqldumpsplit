@@ -1,9 +1,9 @@
 package msds
 
 import (
-	"testing"
 	"io/ioutil"
 	"os"
+	"testing"
 )
 
 func TestSkipTables_String(t *testing.T) {
@@ -62,6 +62,8 @@ func TestStringInArray(t *testing.T) {
 	}{
 		{"String in array", args{"bar", &[]string{"foo", "bar", "baz"}}, true},
 		{"String not in array", args{"bar", &[]string{"foo", "baz"}}, false},
+		{"Wildcard in array", args{"f*", &[]string{"foo", "bar", "baz"}}, true},
+		{"Single character in array", args{"b?r", &[]string{"foo", "bar", "baz"}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -103,9 +105,9 @@ func TestOpenFile(t *testing.T) {
 	}
 	tempFile1, _ := ioutil.TempFile("", "file1")
 
-	tests := []struct{
-		name string
-		args args
+	tests := []struct {
+		name    string
+		args    args
 		wantErr bool
 	}{
 		{"no error opening file", args{tempFile1.Name()}, false},
@@ -124,4 +126,38 @@ func TestOpenFile(t *testing.T) {
 
 	tempFile1.Close()
 	os.Remove(tempFile1.Name())
+}
+
+func TestWildcardMatch(t *testing.T) {
+	type args struct {
+		str     string
+		pattern string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"Empty pattern and string", args{"", ""}, true},
+		{"Empty pattern", args{"foo", ""}, false},
+		{"Empty string", args{"", "bar"}, false},
+		{"Identical strings", args{"foo", "foo"}, true},
+		{"Single character match start", args{"foo", "?oo"}, true},
+		{"Single character wildcard", args{"foobar", "?*"}, true},
+		{"Single character matches wildcard", args{"*", "?"}, true},
+		{"Single character match end", args{"foo", "fo?"}, true},
+		{"Single character match middle", args{"foobar", "foo?ar"}, true},
+		{"Multiple single character matches", args{"foobar", "f?o?a?"}, true},
+		{"Wildcard matches wildcard", args{"*", "*"}, true},
+		{"Wildcard match", args{"foo", "f*"}, true},
+		{"Wildcard with unmatched ending", args{"foo", "f*bar"}, false},
+		{"Multiple wildcard matches", args{"foobar", "f*b*r"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := WildcardMatch(tt.args.str, tt.args.pattern); got != tt.want {
+				t.Errorf("WildcardMatch() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
