@@ -105,11 +105,27 @@ func LineParser(bus ChannelBus, combineFiles bool) {
 }
 
 // Writer writes the data from the different channels to different files.
-func Writer(outputDir string, skipTables []string, bus ChannelBus) {
+func Writer(outputDir string, skipData []string, skipTable []string, bus ChannelBus) {
 	os.Mkdir(outputDir, os.ModePerm)
 	numTables := 0
 
 	for tableName := range bus.TableName {
+		if StringInArray(tableName, &skipTable) {
+			bus.Log <- fmt.Sprintf("skipping table: %s\n", tableName)
+			for tableData := range bus.TableScheme {
+				if tableData == sentinelString {
+					break
+				}
+			}
+			for tableData := range bus.TableData {
+				if tableData == sentinelString {
+					break
+				}
+			}
+
+			continue
+		}
+
 		bus.Log <- fmt.Sprintf("extracting table: %s\n", tableName)
 		numTables++
 		tablePath := filepath.Join(outputDir, tableName+".sql")
@@ -122,12 +138,14 @@ func Writer(outputDir string, skipTables []string, bus ChannelBus) {
 			tableFile.WriteString(tableData)
 		}
 
+		skipTableData := StringInArray(tableName, &skipData)
+
 		for tableData := range bus.TableData {
 			if tableData == sentinelString {
 				break
 			}
 
-			if !StringInArray(tableName, &skipTables) {
+			if !skipTableData {
 				tableFile.WriteString(tableData)
 			}
 		}

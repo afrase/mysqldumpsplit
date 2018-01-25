@@ -6,45 +6,45 @@ import (
 	"testing"
 )
 
-func TestSkipTables_String(t *testing.T) {
+func TestCsvFlagType_String(t *testing.T) {
 	tests := []struct {
 		name string
-		s    *SkipTables
+		s    *CsvFlagType
 		want string
 	}{
-		{"Single table", &SkipTables{"table1"}, "[table1]"},
-		{"Multiple tables", &SkipTables{"table1", "table2", "table3"}, "[table1 table2 table3]"},
-		{"Same table twice", &SkipTables{"table1", "table2", "table2"}, "[table1 table2 table2]"},
+		{"Single table", &CsvFlagType{"table1"}, "[table1]"},
+		{"Multiple tables", &CsvFlagType{"table1", "table2", "table3"}, "[table1 table2 table3]"},
+		{"Same table twice", &CsvFlagType{"table1", "table2", "table2"}, "[table1 table2 table2]"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.s.String(); got != tt.want {
-				t.Errorf("SkipTables.String() = %v, want %v", got, tt.want)
+				t.Errorf("CsvFlagType.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSkipTables_Set(t *testing.T) {
+func TestCsvFlagType_Set(t *testing.T) {
 	type args struct {
 		value string
 	}
 
 	tests := []struct {
 		name    string
-		s       *SkipTables
+		s       *CsvFlagType
 		args    args
 		wantErr bool
 	}{
-		{"No error single table", &SkipTables{}, args{"table1"}, false},
-		{"No error multiple tables", &SkipTables{}, args{"table1,table2, table3"}, false},
-		{"Returns error single table", &SkipTables{"table1"}, args{"table1"}, true},
-		{"Returns error multiple tables", &SkipTables{"table1"}, args{"table1,table2"}, true},
+		{"No error single table", &CsvFlagType{}, args{"table1"}, false},
+		{"No error multiple tables", &CsvFlagType{}, args{"table1,table2, table3"}, false},
+		{"Returns error single table", &CsvFlagType{"table1"}, args{"table1"}, true},
+		{"Returns error multiple tables", &CsvFlagType{"table1"}, args{"table1,table2"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.s.Set(tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("SkipTables.Set() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CsvFlagType.Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -62,8 +62,8 @@ func TestStringInArray(t *testing.T) {
 	}{
 		{"String in array", args{"bar", &[]string{"foo", "bar", "baz"}}, true},
 		{"String not in array", args{"bar", &[]string{"foo", "baz"}}, false},
-		{"Wildcard in array", args{"f*", &[]string{"foo", "bar", "baz"}}, true},
-		{"Single character in array", args{"b?r", &[]string{"foo", "bar", "baz"}}, true},
+		{"Wildcard in array", args{"foo", &[]string{"f*", "bar", "baz"}}, true},
+		{"Single character in array", args{"bar", &[]string{"foo", "b?r", "baz"}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

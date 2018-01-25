@@ -85,9 +85,10 @@ func TestLineParser(t *testing.T) {
 
 func TestWriter(t *testing.T) {
 	type args struct {
-		outputDir  string
-		skipTables []string
-		bus        ChannelBus
+		outputDir string
+		skipTable []string
+		skipData  []string
+		bus       ChannelBus
 	}
 	tests := []struct {
 		name string
@@ -97,7 +98,7 @@ func TestWriter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Writer(tt.args.outputDir, tt.args.skipTables, tt.args.bus)
+			Writer(tt.args.outputDir, tt.args.skipData, tt.args.skipTable, tt.args.bus)
 		})
 	}
 }
