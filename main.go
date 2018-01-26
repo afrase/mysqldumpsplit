@@ -18,7 +18,8 @@ type config struct {
 	CombineFilePath string
 	Combine         bool
 	Version         bool
-	Skip            msds.SkipTables
+	SkipTable       msds.CsvFlagType
+	SkipData        msds.CsvFlagType
 }
 
 func parseFlags() *config {
@@ -27,8 +28,10 @@ func parseFlags() *config {
 	flag.StringVar(&conf.InputFile, "i", "", "The file to read from, can be a gzip file")
 	flag.StringVar(&conf.OutputPath, "o", "output", "The output path ")
 
-	flag.Var(&conf.Skip, "skipData",
-		"Comma separated list of tables you want to skip outputing the data for.\n\tUse '*' to skip all.")
+	flag.Var(&conf.SkipData, "skipData",
+		"Comma separated list of tables you want to skip outputting the data for.\n\tUse '*' to skip all.")
+	flag.Var(&conf.SkipTable, "skipTable",
+		"Comma separated list of tables to skip.\n\tNames can contain '*' for wildcard values")
 
 	flag.BoolVar(&conf.Combine, "combine", false,
 		"Combine all tables into a single file, deletes individual table files")
@@ -70,8 +73,11 @@ func main() {
 	go msds.Logger(bus)
 
 	bus.Log <- fmt.Sprintf("outputing all tables to %s\n", conf.OutputPath)
-	if len(conf.Skip) > 0 {
-		bus.Log <- fmt.Sprintf("skiping data from tables %s\n", strings.Join(conf.Skip, ", "))
+	if len(conf.SkipData) > 0 {
+		bus.Log <- fmt.Sprintf("skiping data from tables %s\n", strings.Join(conf.SkipData, ", "))
+	}
+	if len(conf.SkipTable) > 0 {
+		bus.Log <- fmt.Sprintf("skiping tables %s\n", strings.Join(conf.SkipTable, ", "))
 	}
 
 	start := time.Now()
@@ -79,7 +85,7 @@ func main() {
 	// create a pipeline of goroutines
 	go msds.LineReader(file, bus)
 	go msds.LineParser(bus, conf.Combine)
-	go msds.Writer(conf.OutputPath, conf.Skip, bus)
+	go msds.Writer(conf.OutputPath, conf.SkipData, conf.SkipTable, bus)
 
 	// wait for the writer to finish.
 	<-bus.Finished
