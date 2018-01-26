@@ -6,19 +6,22 @@ Split a mysqldump into separate files for each table.
 ```
 Usage of mysqldumpsplit:
   -combine
-    	Combine all tables into a single file, deletes individual table files
+      Combine all tables into a single file, deletes individual table files
   -combineFile string
-    	The path to output a single SQL file
-	Only used if combine flag is set (default "dumpfile.sql")
+      The path to output a single SQL file
+  Only used if combine flag is set (default "dumpfile.sql")
   -i string
-    	The file to read from, can be a gzip file
+      The file to read from, can be a gzip file
   -o string
-    	The output path  (default "output")
+      The output path  (default "output")
   -skipData value
-    	Comma separated list of tables you want to skip outputing the data for.
-	Use '*' to skip all.
+      Comma separated list of tables you want to skip outputting the data for.
+  Use '*' to skip all.
+  -skipTable value
+      Comma separated list of tables to skip.
+  Names can contain '*' for wildcard values
   -version
-    	Display the version and exit
+      Display the version and exit
 ```
 
 # Install
