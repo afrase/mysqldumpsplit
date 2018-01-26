@@ -105,29 +105,26 @@ func LineParser(bus ChannelBus, combineFiles bool) {
 }
 
 // Writer writes the data from the different channels to different files.
-func Writer(outputDir string, skipData []string, skipTable []string, bus ChannelBus) {
+func Writer(outputDir string, skipData []string, skipTables []string, bus ChannelBus) {
 	os.Mkdir(outputDir, os.ModePerm)
 	numTables := 0
 
 	for tableName := range bus.TableName {
-		if StringInArray(tableName, &skipTable) {
-			bus.Log <- fmt.Sprintf("skipping table: %s\n", tableName)
-			for tableData := range bus.TableScheme {
-				if tableData == sentinelString {
-					break
-				}
-			}
-			for tableData := range bus.TableData {
-				if tableData == sentinelString {
-					break
-				}
-			}
+		var skipTableData bool
+		skipTable := StringInArray(tableName, &skipTables)
 
-			continue
+		if skipTable {
+			// also skip the data for the table.
+			skipTableData = true
+			bus.Log <- fmt.Sprintf("skipping table: %s\n", tableName)
+		} else {
+			bus.Log <- fmt.Sprintf("extracting table: %s\n", tableName)
+			numTables++
+			skipTableData = StringInArray(tableName, &skipData)
 		}
 
-		bus.Log <- fmt.Sprintf("extracting table: %s\n", tableName)
-		numTables++
+		// to keep the code somewhat DRY, we create the sql file even if skipping the table.
+		// we then delete it at the end of the loop.
 		tablePath := filepath.Join(outputDir, tableName+".sql")
 		tableFile, _ := os.Create(tablePath)
 
@@ -135,10 +132,16 @@ func Writer(outputDir string, skipData []string, skipTable []string, bus Channel
 			if tableData == sentinelString {
 				break
 			}
-			tableFile.WriteString(tableData)
+
+			if !skipTable {
+				tableFile.WriteString(tableData)
+			}
 		}
 
-		skipTableData := StringInArray(tableName, &skipData)
+		if skipTableData && !skipTable {
+			// not skipping table but skipping data
+			bus.Log <- fmt.Sprintf("skipping data for table: %s\n", tableName)
+		}
 
 		for tableData := range bus.TableData {
 			if tableData == sentinelString {
@@ -149,7 +152,12 @@ func Writer(outputDir string, skipData []string, skipTable []string, bus Channel
 				tableFile.WriteString(tableData)
 			}
 		}
+
 		tableFile.Close()
+
+		if skipTable {
+			os.Remove(tablePath)
+		}
 	}
 	bus.Log <- fmt.Sprintf("extracted %d tables\n", numTables)
 	bus.Finished <- true
