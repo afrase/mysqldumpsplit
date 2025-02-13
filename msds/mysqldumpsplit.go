@@ -26,10 +26,10 @@ type ChannelBus struct {
 }
 
 func isGzip(b *bufio.Reader) bool {
-	if m, err := b.Peek(2); err != nil && m[0] != 0x1f && m[1] != 0x8b {
-		return false
+	if m, err := b.Peek(2); err == nil {
+		return m[0] == 0x1f && m[1] == 0x8b
 	}
-	return true
+	return false
 }
 
 func openReader(f *os.File) *bufio.Reader {
