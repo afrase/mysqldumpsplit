@@ -1,8 +1,6 @@
 package msds
 
 import (
-	"bytes"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"math"
@@ -109,12 +107,4 @@ func initLookupTable(rows, columns int) [][]bool {
 		lookup[i] = make([]bool, columns)
 	}
 	return lookup
-}
-
-func createGzipData(data []byte) []byte {
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	_, _ = gz.Write(data)
-	_ = gz.Close()
-	return buf.Bytes()
 }

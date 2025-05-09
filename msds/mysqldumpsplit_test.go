@@ -3,12 +3,21 @@ package msds
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"os"
 	"reflect"
 	"testing"
 )
 
 func Test_isGzip(t *testing.T) {
+	createGzipData := func(data []byte) []byte {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		_, _ = gz.Write(data)
+		_ = gz.Close()
+		return buf.Bytes()
+	}
+
 	tests := []struct {
 		name    string
 		content []byte
