@@ -20,3 +20,5 @@
 .idea
 dist
 mysqldumpsplit
+# Added by goreleaser init:
+dist/
