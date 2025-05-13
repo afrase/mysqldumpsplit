@@ -2,25 +2,44 @@ package msds
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"os"
 	"reflect"
 	"testing"
 )
 
 func Test_isGzip(t *testing.T) {
-	type args struct {
-		b *bufio.Reader
+	createGzipData := func(data []byte) []byte {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		_, _ = gz.Write(data)
+		_ = gz.Close()
+		return buf.Bytes()
 	}
+
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name    string
+		content []byte
+		want    bool
 	}{
-	// TODO: Add test cases.
+		{
+			name:    "gzip file",
+			content: createGzipData([]byte("test data")),
+			want:    true,
+		},
+		{
+			name:    "non-gzip file",
+			content: []byte("test data"),
+			want:    false,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isGzip(tt.args.b); got != tt.want {
+			b := bytes.NewReader(tt.content)
+			bufReader := bufio.NewReader(b)
+			if got := isGzip(bufReader); got != tt.want {
 				t.Errorf("isGzip() = %v, want %v", got, tt.want)
 			}
 		})
