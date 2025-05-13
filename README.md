@@ -1,5 +1,4 @@
 # mysqldumpsplit
-[![CircleCI](https://circleci.com/gh/afrase/mysqldumpsplit.svg?style=svg)](https://circleci.com/gh/afrase/mysqldumpsplit)
 
 Split a mysqldump into separate files for each table.
 
