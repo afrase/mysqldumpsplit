@@ -51,6 +51,7 @@ release:
 brews:
   - name: mysqldumpsplit
     description: "Split a mysqldump into separate files for each table."
+    directory: Formula
     repository:
       owner: afrase
       name: homebrew-tap
